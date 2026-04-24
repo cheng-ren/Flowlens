@@ -57,11 +57,10 @@ if __name__ == "__main__":
     os.makedirs(os.path.dirname(out), exist_ok=True)
 
     if os.path.exists(out):
-        print(f"图标已存在，跳过生成：{out}")
-        print("如需重新生成，请先删除该文件")
+        print(f"[icon] already exists, skipping: {out}")
     else:
         png = make_icon_png(512)
         with open(out, "wb") as f:
             f.write(png)
-        print(f"✓ 已生成占位图标：{out}  ({len(png):,} bytes)")
-        print("  提示：这是自动生成的占位图标，建议替换为正式设计图标后提交到 git")
+        print(f"[icon] generated placeholder icon: {out}  ({len(png):,} bytes)")
+        print("[icon] replace with a real icon when ready")

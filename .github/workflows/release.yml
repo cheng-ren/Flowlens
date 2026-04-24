@@ -68,6 +68,8 @@ jobs:
 
       - name: 生成图标（如 resources/icon.png 不存在）
         run: python3 scripts/generate-icon.py
+        env:
+          PYTHONIOENCODING: utf-8
 
       - name: 构建 Windows 安装包
         run: npm run build:win
