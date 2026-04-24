@@ -1,0 +1,86 @@
+{
+  "name": "flowlens",
+  "version": "0.1.0",
+  "description": "FlowLens - 财流镜桌面应用",
+  "main": "./out/main/index.js",
+  "author": "FlowLens",
+  "license": "MIT",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "postinstall": "electron-builder install-app-deps",
+    "build:mac": "npm run build && electron-builder --mac --universal",
+    "build:mac:arm64": "npm run build && electron-builder --mac --arm64",
+    "build:mac:x64": "npm run build && electron-builder --mac --x64",
+    "build:win": "npm run build && electron-builder --win",
+    "pack": "electron-builder --dir"
+  },
+  "dependencies": {
+    "@electron-toolkit/preload": "^3.0.0",
+    "@electron-toolkit/utils": "^3.0.0",
+    "better-sqlite3": "^9.4.3",
+    "lucide-react": "^0.364.0",
+    "pdf-parse": "^1.1.1",
+    "react-router-dom": "^6.22.3",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.1/xlsx-0.20.1.tgz"
+  },
+  "devDependencies": {
+    "@electron-toolkit/tsconfig": "^1.0.1",
+    "@types/better-sqlite3": "^7.6.9",
+    "@types/node": "^18.19.9",
+    "@types/react": "^18.2.48",
+    "@types/react-dom": "^18.2.18",
+    "@vitejs/plugin-react": "^4.2.1",
+    "electron": "^28.2.0",
+    "electron-builder": "^24.9.1",
+    "electron-vite": "^2.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.12"
+  },
+  "build": {
+    "appId": "cc.dbao.flowlens",
+    "productName": "财流镜",
+    "copyright": "Copyright © 2025 FlowLens",
+    "icon": "resources/icon",
+    "files": [
+      "out/**/*",
+      "resources/**/*"
+    ],
+    "mac": {
+      "target": [
+        { "target": "dmg", "arch": ["universal"] }
+      ],
+      "category": "public.app-category.finance",
+      "identity": null,
+      "darkModeSupport": true
+    },
+    "dmg": {
+      "title": "财流镜 FlowLens",
+      "background": null,
+      "window": { "width": 540, "height": 380 }
+    },
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] }
+      ],
+      "icon": "resources/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerLanguages": ["zh_CN", "en_US"],
+      "language": "2052",
+      "installerIcon": "resources/icon.ico",
+      "uninstallerIcon": "resources/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "财流镜"
+    },
+    "directories": {
+      "buildResources": "resources",
+      "output": "dist"
+    }
+  }
+}

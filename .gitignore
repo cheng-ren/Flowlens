@@ -1,0 +1,12 @@
+node_modules
+dist
+out
+dist-electron
+release
+build
+.DS_Store
+*.sqlite
+*.sqlite3
+*.db
+.env
+test_files
