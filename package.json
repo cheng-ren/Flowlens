@@ -1,6 +1,6 @@
 {
   "name": "flowlens",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "FlowLens - 财流镜桌面应用",
   "main": "./out/main/index.js",
   "author": "FlowLens",
