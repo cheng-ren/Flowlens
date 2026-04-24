@@ -46,6 +46,7 @@
     "copyright": "Copyright © 2025 FlowLens",
     "artifactName": "${productName}-${version}-${arch}.${ext}",
     "icon": "resources/icon.png",
+    "publish": null,
     "files": [
       "out/**/*",
       "resources/**/*"
