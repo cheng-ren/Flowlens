@@ -1,0 +1,76 @@
+name: 发布新版本
+
+# 推送 v* 格式的 tag 时触发，例如 v1.0.0、v1.2.3
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+# 允许创建 Release 和上传文件
+permissions:
+  contents: write
+
+jobs:
+  # ── macOS 构建 ─────────────────────────────────────────────────────────────
+  build-mac:
+    name: 构建 macOS (Universal)
+    runs-on: macos-14   # arm64，自带 Rosetta，可构建 Universal 包
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: 安装依赖（含 native 模块重建）
+        run: npm ci
+
+      - name: 构建 macOS 安装包
+        run: npm run build:mac
+
+      - name: 上传至 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "财流镜 ${{ github.ref_name }}"
+          draft: false
+          prerelease: false
+          generate_release_notes: true   # 自动从提交记录生成更新说明
+          files: |
+            dist/*.dmg
+            dist/*.zip
+
+  # ── Windows 构建 ───────────────────────────────────────────────────────────
+  build-win:
+    name: 构建 Windows (x64)
+    runs-on: windows-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: 安装依赖（含 native 模块重建）
+        run: npm ci
+
+      - name: 构建 Windows 安装包
+        run: npm run build:win
+
+      - name: 上传至 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "财流镜 ${{ github.ref_name }}"
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            dist/*.exe
+            dist/*.msi
