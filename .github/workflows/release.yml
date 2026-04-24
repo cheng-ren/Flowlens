@@ -31,6 +31,8 @@ jobs:
 
       - name: 构建 macOS 安装包
         run: npm run build:mac
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 上传至 GitHub Release
         uses: softprops/action-gh-release@v2
@@ -63,6 +65,8 @@ jobs:
 
       - name: 构建 Windows 安装包
         run: npm run build:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 上传至 GitHub Release
         uses: softprops/action-gh-release@v2
