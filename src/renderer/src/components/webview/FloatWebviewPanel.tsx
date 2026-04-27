@@ -34,6 +34,9 @@ export function FloatWebviewPanel({
 }: FloatWebviewPanelProps) {
   if (!authAccountId) return null;
 
+  // 授权场景（从设置页打开）需要高于 SettingsModal 的 zIndex（50000）
+  const panelZ = view === "settings" ? 60000 : 9999;
+
   return (
     <>
       {/* 拖拽时全屏遮罩，防止 webview 吃掉鼠标事件 */}
@@ -42,7 +45,7 @@ export function FloatWebviewPanel({
           style={{
             position: "fixed",
             inset: 0,
-            zIndex: 99999,
+            zIndex: panelZ + 1000,
             cursor: "nwse-resize",
           }}
         />
@@ -60,7 +63,7 @@ export function FloatWebviewPanel({
           borderRadius: 12,
           boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
           border: "1px solid #38bdf8",
-          zIndex: 9999,
+          zIndex: panelZ,
           width: 250,
         }}
       >
@@ -109,7 +112,7 @@ export function FloatWebviewPanel({
           boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.7)",
           border: "1px solid #334155",
           overflow: "hidden",
-          zIndex: 9999,
+          zIndex: panelZ,
           background: "white",
           display: "flex",
           flexDirection: "column",

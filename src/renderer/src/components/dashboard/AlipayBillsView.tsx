@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { primaryBtn, secondaryBtn } from "../../styles";
+import { primaryBtn, secondaryBtn, C } from "../../styles";
 
 /** 将 "4/16/26 10:43" 之类的美式日期统一为 "2026-04-16 10:43" */
 function normalizeDate(raw: string): string {
   if (!raw) return "-";
-  // 已经是 YYYY-MM-DD 格式直接返回
   if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw;
-  // M/D/YY HH:MM 格式
   const m = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s*(.*)/);
   if (m) {
     const year = m[3].length === 2 ? "20" + m[3] : m[3];
@@ -17,16 +15,29 @@ function normalizeDate(raw: string): string {
   return raw;
 }
 
-export function AlipayBillsView() {
+interface AlipayBillsViewProps {
+  users?: any[];
+  activeUser?: any;
+}
+
+export function AlipayBillsView({ users = [], activeUser }: AlipayBillsViewProps) {
   const [bills, setBills] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(
+    activeUser?.id ?? null
+  );
 
-  const loadBills = async () => {
+  // 当外部 activeUser 切换时同步选中
+  useEffect(() => {
+    setSelectedUserId(activeUser?.id ?? null);
+  }, [activeUser?.id]);
+
+  const loadBills = async (userId?: string | null) => {
     setLoading(true);
     try {
       // @ts-ignore
-      const data = await window.api.getAlipayBills();
+      const data = await window.api.getAlipayBills(userId ?? undefined);
       setBills(data);
     } finally {
       setLoading(false);
@@ -34,21 +45,22 @@ export function AlipayBillsView() {
   };
 
   useEffect(() => {
-    loadBills();
-  }, []);
+    loadBills(selectedUserId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedUserId]);
 
   const handleImport = async () => {
     setImporting(true);
     try {
       // @ts-ignore
-      const result = await window.api.importAlipayExcel();
+      const result = await window.api.importAlipayExcel(selectedUserId ?? undefined);
       if (result.canceled) return;
       if (result.error) {
         alert("导入失败：" + result.error);
         return;
       }
       alert(`导入成功，共导入 ${result.count} 条账单`);
-      await loadBills();
+      await loadBills(selectedUserId);
     } catch (e: any) {
       alert("导入出错：" + e.message);
     } finally {
@@ -63,8 +75,58 @@ export function AlipayBillsView() {
     .filter((b) => b.type === "支出")
     .reduce((s, b) => s + (b.amount || 0), 0);
 
+  const selectedUser = users.find((u) => u.id === selectedUserId);
+
   return (
     <div style={{ padding: 30 }}>
+      {/* 用户选择 tabs */}
+      {users.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            gap: 6,
+            marginBottom: 20,
+            flexWrap: "wrap",
+          }}
+        >
+          <button
+            onClick={() => setSelectedUserId(null)}
+            style={{
+              padding: "6px 14px",
+              borderRadius: 7,
+              border: `1px solid ${selectedUserId === null ? "#1677ff" : C.borderMd}`,
+              background: selectedUserId === null ? "#1677ff22" : "transparent",
+              color: selectedUserId === null ? "#1677ff" : C.text3,
+              fontSize: 12,
+              fontWeight: selectedUserId === null ? 600 : 400,
+              cursor: "pointer",
+              transition: "all 0.15s",
+            }}
+          >
+            全部
+          </button>
+          {users.map((u) => (
+            <button
+              key={u.id}
+              onClick={() => setSelectedUserId(u.id)}
+              style={{
+                padding: "6px 14px",
+                borderRadius: 7,
+                border: `1px solid ${selectedUserId === u.id ? "#1677ff" : C.borderMd}`,
+                background: selectedUserId === u.id ? "#1677ff22" : "transparent",
+                color: selectedUserId === u.id ? "#1677ff" : C.text3,
+                fontSize: 12,
+                fontWeight: selectedUserId === u.id ? 600 : 400,
+                cursor: "pointer",
+                transition: "all 0.15s",
+              }}
+            >
+              {u.name}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* 顶部栏 */}
       <div
         style={{
@@ -75,7 +137,9 @@ export function AlipayBillsView() {
         }}
       >
         <div>
-          <h3 style={{ margin: 0, fontWeight: 600, fontSize: 18 }}>支付宝账单</h3>
+          <h3 style={{ margin: 0, fontWeight: 600, fontSize: 18 }}>
+            支付宝账单{selectedUser ? ` · ${selectedUser.name}` : ""}
+          </h3>
           <span style={{ fontSize: 13, color: "#64748b" }}>
             共 {bills.length} 笔 · 收入{" "}
             <span style={{ color: "#34d399", fontWeight: 600 }}>¥{totalIn.toFixed(2)}</span>
@@ -94,9 +158,9 @@ export function AlipayBillsView() {
                 : "linear-gradient(135deg, #1677ff, #0050d7)",
             }}
           >
-            {importing ? "导入中..." : "📂 导入 Excel 文件"}
+            {importing ? "导入中..." : "📂 导入账单文件"}
           </button>
-          <button onClick={loadBills} style={secondaryBtn}>
+          <button onClick={() => loadBills(selectedUserId)} style={secondaryBtn}>
             ↻ 刷新
           </button>
         </div>
@@ -116,10 +180,17 @@ export function AlipayBillsView() {
           }}
         >
           <div style={{ fontSize: 36, marginBottom: 10 }}>💙</div>
-          <p style={{ margin: "0 0 8px" }}>暂无支付宝账单数据</p>
-          <p style={{ margin: 0, fontSize: 12 }}>
-            请在支付宝 App → 账单 → 导出 下载 .xls 文件后导入
+          <p style={{ margin: "0 0 8px" }}>
+            暂无{selectedUser ? `【${selectedUser.name}】的` : ""}支付宝账单数据
           </p>
+          <p style={{ margin: 0, fontSize: 12 }}>
+            请在支付宝 App → 账单 → 导出 下载 .csv 或 .xls 文件后导入
+          </p>
+          {users.length > 0 && !selectedUserId && (
+            <p style={{ margin: "6px 0 0", fontSize: 12, color: "#475569" }}>
+              提示：请先在上方选择对应成员，再点击导入
+            </p>
+          )}
         </div>
       )}
 

@@ -53,6 +53,7 @@ interface SettingsModalProps {
   onAddAccount: (platform: string) => void;
   onAuthorize: (account: any) => void;
   onDeleteAccount: (account: any) => void;
+  onBankProfilesChanged?: () => void;
 }
 
 export function SettingsModal({
@@ -72,6 +73,7 @@ export function SettingsModal({
   onAddAccount,
   onAuthorize,
   onDeleteAccount,
+  onBankProfilesChanged,
 }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("account");
 
@@ -208,6 +210,7 @@ export function SettingsModal({
                 onAddAccount={onAddAccount}
                 onAuthorize={onAuthorize}
                 onDeleteAccount={onDeleteAccount}
+                onBankProfilesChanged={onBankProfilesChanged}
               />
             )}
 

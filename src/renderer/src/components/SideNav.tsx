@@ -1,6 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import type { ViewType } from "../App";
 import { C } from "../styles";
+
+export interface BankProfileItem {
+  id: string;
+  name: string;
+}
 
 // ── 数据定义 ──────────────────────────────────────────────────────────────────
 
@@ -30,8 +35,9 @@ interface NavSingle {
 
 type NavEntry = NavSingle | NavGroup;
 
-const NAV: NavEntry[] = [
-  { type: "single", id: "home", label: "看板", icon: "▦" },
+const STATIC_NAV_WITHOUT_BANK: NavEntry[] = [
+  { type: "single", id: "home", label: "财务概览", icon: "▦" },
+  { type: "single", id: "assetFlow", label: "资产流转", icon: "⇌" },
   {
     type: "group",
     label: "电商平台",
@@ -56,23 +62,6 @@ const NAV: NavEntry[] = [
       { id: "unionpay", label: "云闪付", icon: "🔴", status: "soon"  },
     ],
   },
-  {
-    type: "group",
-    label: "银行卡",
-    icon: "🏦",
-    defaultExpanded: false,
-    children: [
-      { id: "bank",       label: "招商", icon: "🏦", status: "ready" },
-      { id: "ccb",        label: "建设", icon: "🏦", status: "soon"  },
-      { id: "abc",        label: "农业", icon: "🏦", status: "soon"  },
-      { id: "icbc",       label: "工商", icon: "🏦", status: "soon"  },
-      { id: "boc",        label: "中银", icon: "🏦", status: "soon"  },
-      { id: "postal",     label: "邮政", icon: "🏦", status: "soon"  },
-      { id: "citic",      label: "中信", icon: "🏦", status: "soon"  },
-      { id: "minsheng",   label: "民生", icon: "🏦", status: "soon"  },
-      { id: "other_bank", label: "其他", icon: "🏦", status: "soon"  },
-    ],
-  },
 ];
 
 // ── 主组件 ────────────────────────────────────────────────────────────────────
@@ -80,16 +69,45 @@ const NAV: NavEntry[] = [
 interface SideNavProps {
   activeFamily: any;
   view: ViewType;
+  bankProfiles: BankProfileItem[];
   onNavigate: (v: ViewType) => void;
   onOpenSettings: () => void;
 }
 
-export function SideNav({ activeFamily, view, onNavigate, onOpenSettings }: SideNavProps) {
+export function SideNav({ activeFamily, view, bankProfiles, onNavigate, onOpenSettings }: SideNavProps) {
+  const buildNav = (): NavEntry[] => {
+    const bankChildren: MenuItem[] = bankProfiles.map((p) => ({
+      id: `bank:${p.id}`,
+      label: p.name,
+      icon: "🏦",
+      status: "ready" as MenuStatus,
+    }));
+
+    return [
+      ...STATIC_NAV_WITHOUT_BANK,
+      {
+        type: "group",
+        label: "银行卡",
+        icon: "🏦",
+        defaultExpanded: bankChildren.length > 0,
+        children: bankChildren,
+      },
+    ];
+  };
+
+  const nav = buildNav();
   const initExpanded: Record<string, boolean> = {};
-  NAV.forEach((e) => {
+  nav.forEach((e) => {
     if (e.type === "group") initExpanded[e.label] = e.defaultExpanded;
   });
   const [expanded, setExpanded] = useState(initExpanded);
+
+  // 当用户在设置中添加了银行后，自动展开银行卡分组
+  useEffect(() => {
+    if (bankProfiles.length > 0) {
+      setExpanded((prev) => ({ ...prev, "银行卡": true }));
+    }
+  }, [bankProfiles.length]);
 
   return (
     <nav
@@ -105,12 +123,24 @@ export function SideNav({ activeFamily, view, onNavigate, onOpenSettings }: Side
         userSelect: "none",
       }}
     >
+      {/* ── macOS 红绿灯拖拽区 ────────────── */}
+      <div
+        style={{
+          height: 38,
+          flexShrink: 0,
+          // @ts-ignore
+          WebkitAppRegion: "drag",
+        }}
+      />
+
       {/* ── 家庭信息 ─────────────────────── */}
       <div
         style={{
-          padding: "16px 14px 14px",
+          padding: "0 14px 14px",
           borderBottom: `1px solid ${C.border}`,
           flexShrink: 0,
+          // @ts-ignore
+          WebkitAppRegion: "no-drag",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -162,8 +192,9 @@ export function SideNav({ activeFamily, view, onNavigate, onOpenSettings }: Side
       </div>
 
       {/* ── 导航菜单 ─────────────────────── */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "8px 0 4px" }}>
-        {NAV.map((entry) => {
+      {/* @ts-ignore */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "8px 0 4px", WebkitAppRegion: "no-drag" }}>
+        {nav.map((entry) => {
           if (entry.type === "single") {
             return (
               <NavItem
@@ -195,25 +226,39 @@ export function SideNav({ activeFamily, view, onNavigate, onOpenSettings }: Side
               <div
                 style={{
                   overflow: "hidden",
-                  maxHeight: isOpen ? entry.children.length * 40 + "px" : "0px",
+                  maxHeight: isOpen ? Math.max(entry.children.length, 1) * 38 + "px" : "0px",
                   transition: "max-height 0.22s cubic-bezier(0.4,0,0.2,1)",
                   opacity: isOpen ? 1 : 0,
                   transitionProperty: "max-height, opacity",
                 }}
               >
-                {entry.children.map((child) => (
-                  <NavItem
-                    key={child.id}
-                    label={child.label}
-                    icon={child.icon}
-                    isActive={view === child.id}
-                    isSoon={child.status === "soon"}
-                    onClick={() =>
-                      child.status !== "soon" && onNavigate(child.id as ViewType)
-                    }
-                    indent
-                  />
-                ))}
+                {entry.children.length === 0 && entry.label === "银行卡" ? (
+                  <div
+                    style={{
+                      padding: "6px 18px 6px 30px",
+                      fontSize: 11,
+                      color: C.text3,
+                      cursor: "pointer",
+                    }}
+                    onClick={onOpenSettings}
+                  >
+                    + 在设置中添加银行
+                  </div>
+                ) : (
+                  entry.children.map((child) => (
+                    <NavItem
+                      key={child.id}
+                      label={child.label}
+                      icon={child.icon}
+                      isActive={view === child.id}
+                      isSoon={child.status === "soon"}
+                      onClick={() =>
+                        child.status !== "soon" && onNavigate(child.id as ViewType)
+                      }
+                      indent
+                    />
+                  ))
+                )}
               </div>
             </div>
           );
@@ -226,6 +271,8 @@ export function SideNav({ activeFamily, view, onNavigate, onOpenSettings }: Side
           padding: "10px 10px 12px",
           borderTop: `1px solid ${C.border}`,
           flexShrink: 0,
+          // @ts-ignore
+          WebkitAppRegion: "no-drag",
         }}
       >
         <SettingsBtn onClick={onOpenSettings} />
@@ -256,14 +303,15 @@ function GroupHeader({
       onMouseLeave={() => setHovered(false)}
       style={{
         width: "100%",
+        height: 44,
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "5px 12px 5px 14px",
+        padding: "0 12px 0 14px",
         background: "transparent",
         border: "none",
         cursor: "pointer",
-        color: hovered ? C.text2 : C.text3,
+        color: hovered ? C.text1 : C.text2,
         transition: "color 0.15s",
       }}
     >
@@ -271,14 +319,14 @@ function GroupHeader({
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 6,
-          fontSize: 11,
+          gap: 7,
+          fontSize: 12,
           fontWeight: 600,
-          letterSpacing: "0.06em",
+          letterSpacing: "0.04em",
           textTransform: "uppercase",
         }}
       >
-        <span style={{ fontSize: 12 }}>{icon}</span>
+        <span style={{ fontSize: 14, lineHeight: 1 }}>{icon}</span>
         {label}
       </span>
       {/* 旋转箭头 */}
@@ -292,8 +340,8 @@ function GroupHeader({
           borderRadius: 4,
           transition: "transform 0.22s cubic-bezier(0.4,0,0.2,1)",
           transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
-          fontSize: 13,
-          color: hovered ? C.text3 : "#2a3346",
+          fontSize: 14,
+          color: hovered ? C.text2 : C.text3,
         }}
       >
         ›
@@ -329,16 +377,17 @@ function NavItem({
         onMouseLeave={() => setHovered(false)}
         style={{
           width: "100%",
+          height: 36,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: indent ? "6px 10px 6px 14px" : "7px 10px",
+          padding: "0 10px",
           paddingLeft: indent ? 18 : 10,
           borderRadius: 7,
           background: isActive
             ? C.bgActive
             : hovered && !isSoon
-            ? "rgba(240,246,255,0.04)"
+            ? "rgba(240,246,255,0.05)"
             : "transparent",
           border: "none",
           outline: isActive ? `1px solid rgba(77,156,240,0.2)` : "none",
@@ -352,14 +401,14 @@ function NavItem({
             alignItems: "center",
             gap: 8,
             fontSize: 13,
-            fontWeight: isActive ? 500 : 400,
+            fontWeight: isActive ? 600 : 400,
             color: isActive
               ? C.accentSoft
               : isSoon
               ? C.text3
               : hovered
               ? C.text1
-              : C.text2,
+              : "#c9d1d9",
             transition: "color 0.12s",
           }}
         >

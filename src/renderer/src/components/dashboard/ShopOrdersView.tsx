@@ -1,14 +1,22 @@
 import React, { useEffect, useState } from "react";
 import { primaryBtn, secondaryBtn } from "../../styles";
 
-export type TimeRange = "last_month" | "this_year" | "2025" | "2024";
+export type TimeRange = string;
 
-const TIME_RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
-  { value: "last_month", label: "最近1个月" },
-  { value: "this_year", label: "今年" },
-  { value: "2025", label: "2025年" },
-  { value: "2024", label: "2024年" },
-];
+function buildTimeRangeOptions(): { value: TimeRange; label: string }[] {
+  const currentYear = new Date().getFullYear();
+  const opts: { value: TimeRange; label: string }[] = [
+    { value: "last_month", label: "最近1个月" },
+    { value: "this_year",  label: "今年" },
+  ];
+  // 从今年开始往前 5 年，避免今年重复
+  for (let y = currentYear; y >= currentYear - 5; y--) {
+    opts.push({ value: String(y), label: `${y}年` });
+  }
+  return opts;
+}
+
+const TIME_RANGE_OPTIONS = buildTimeRangeOptions();
 
 interface ShopOrdersViewProps {
   platform: "taobao" | "jd";
@@ -74,7 +82,9 @@ export function ShopOrdersView({
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
-  const [selectedRange, setSelectedRange] = useState<TimeRange>("this_year");
+  const [selectedRange, setSelectedRange] = useState<TimeRange>(
+    String(new Date().getFullYear())
+  );
   const cfg = PLATFORM_CONFIG[platform];
 
   const loadOrders = async () => {

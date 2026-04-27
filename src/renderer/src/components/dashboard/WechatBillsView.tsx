@@ -1,16 +1,29 @@
 import React, { useEffect, useState } from "react";
-import { primaryBtn, secondaryBtn } from "../../styles";
+import { primaryBtn, secondaryBtn, C } from "../../styles";
 
-export function WechatBillsView() {
+interface WechatBillsViewProps {
+  users?: any[];
+  activeUser?: any;
+}
+
+export function WechatBillsView({ users = [], activeUser }: WechatBillsViewProps) {
   const [bills, setBills] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(
+    activeUser?.id ?? null
+  );
 
-  const loadBills = async () => {
+  // 当外部 activeUser 切换时同步选中
+  useEffect(() => {
+    setSelectedUserId(activeUser?.id ?? null);
+  }, [activeUser?.id]);
+
+  const loadBills = async (userId?: string | null) => {
     setLoading(true);
     try {
       // @ts-ignore
-      const data = await window.api.getWechatBills();
+      const data = await window.api.getWechatBills(userId ?? undefined);
       setBills(data);
     } finally {
       setLoading(false);
@@ -18,21 +31,22 @@ export function WechatBillsView() {
   };
 
   useEffect(() => {
-    loadBills();
-  }, []);
+    loadBills(selectedUserId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedUserId]);
 
   const handleImport = async () => {
     setImporting(true);
     try {
       // @ts-ignore
-      const result = await window.api.importWechatExcel();
+      const result = await window.api.importWechatExcel(selectedUserId ?? undefined);
       if (result.canceled) return;
       if (result.error) {
         alert("导入失败：" + result.error);
         return;
       }
       alert(`导入成功，共导入 ${result.count} 条账单`);
-      await loadBills();
+      await loadBills(selectedUserId);
     } catch (e: any) {
       alert("导入出错：" + e.message);
     } finally {
@@ -47,8 +61,59 @@ export function WechatBillsView() {
     .filter((b) => b.type === "支出")
     .reduce((s, b) => s + (b.amount || 0), 0);
 
+  const selectedUser = users.find((u) => u.id === selectedUserId);
+
   return (
     <div style={{ padding: 30 }}>
+      {/* 用户选择 tabs */}
+      {users.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            gap: 6,
+            marginBottom: 20,
+            flexWrap: "wrap",
+          }}
+        >
+          <button
+            onClick={() => setSelectedUserId(null)}
+            style={{
+              padding: "6px 14px",
+              borderRadius: 7,
+              border: `1px solid ${selectedUserId === null ? "#07c160" : C.borderMd}`,
+              background: selectedUserId === null ? "#07c16022" : "transparent",
+              color: selectedUserId === null ? "#07c160" : C.text3,
+              fontSize: 12,
+              fontWeight: selectedUserId === null ? 600 : 400,
+              cursor: "pointer",
+              transition: "all 0.15s",
+            }}
+          >
+            全部
+          </button>
+          {users.map((u) => (
+            <button
+              key={u.id}
+              onClick={() => setSelectedUserId(u.id)}
+              style={{
+                padding: "6px 14px",
+                borderRadius: 7,
+                border: `1px solid ${selectedUserId === u.id ? "#07c160" : C.borderMd}`,
+                background: selectedUserId === u.id ? "#07c16022" : "transparent",
+                color: selectedUserId === u.id ? "#07c160" : C.text3,
+                fontSize: 12,
+                fontWeight: selectedUserId === u.id ? 600 : 400,
+                cursor: "pointer",
+                transition: "all 0.15s",
+              }}
+            >
+              {u.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* 顶部栏 */}
       <div
         style={{
           display: "flex",
@@ -58,7 +123,9 @@ export function WechatBillsView() {
         }}
       >
         <div>
-          <h3 style={{ margin: 0, fontWeight: 600, fontSize: 18 }}>微信账单</h3>
+          <h3 style={{ margin: 0, fontWeight: 600, fontSize: 18 }}>
+            微信账单{selectedUser ? ` · ${selectedUser.name}` : ""}
+          </h3>
           <span style={{ fontSize: 13, color: "#64748b" }}>
             共 {bills.length} 笔 · 收入{" "}
             <span style={{ color: "#34d399", fontWeight: 600 }}>¥{totalIn.toFixed(2)}</span>
@@ -79,12 +146,13 @@ export function WechatBillsView() {
           >
             {importing ? "导入中..." : "📂 导入 Excel 文件"}
           </button>
-          <button onClick={loadBills} style={secondaryBtn}>
+          <button onClick={() => loadBills(selectedUserId)} style={secondaryBtn}>
             ↻ 刷新
           </button>
         </div>
       </div>
 
+      {/* 空状态 */}
       {bills.length === 0 && !loading && (
         <div
           style={{
@@ -98,16 +166,24 @@ export function WechatBillsView() {
           }}
         >
           <div style={{ fontSize: 36, marginBottom: 10 }}>💚</div>
-          <p style={{ margin: "0 0 8px" }}>暂无微信账单数据</p>
+          <p style={{ margin: "0 0 8px" }}>
+            暂无{selectedUser ? `【${selectedUser.name}】的` : ""}微信账单数据
+          </p>
           <p style={{ margin: 0, fontSize: 12 }}>
             请在微信 → 我 → 支付 → 账单 → 导出账单 下载 .xlsx 文件后导入
           </p>
           <p style={{ margin: "6px 0 0", fontSize: 12, color: "#475569" }}>
             注意：若文件有解压密码，请先用密码解压后再导入
           </p>
+          {users.length > 0 && !selectedUserId && (
+            <p style={{ margin: "6px 0 0", fontSize: 12, color: "#475569" }}>
+              提示：请先在上方选择对应成员，再点击导入
+            </p>
+          )}
         </div>
       )}
 
+      {/* 表格 */}
       {(loading || bills.length > 0) && (
         <div
           style={{

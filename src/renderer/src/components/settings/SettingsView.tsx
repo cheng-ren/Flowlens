@@ -18,6 +18,7 @@ interface SettingsViewProps {
   onAddAccount: (platform: string) => void;
   onAuthorize: (account: any) => void;
   onDeleteAccount: (account: any) => void;
+  onBankProfilesChanged?: () => void;
 }
 
 export function SettingsView({
@@ -35,6 +36,7 @@ export function SettingsView({
   onAddAccount,
   onAuthorize,
   onDeleteAccount,
+  onBankProfilesChanged,
 }: SettingsViewProps) {
   return (
     <div style={{ padding: 30, maxWidth: 800, margin: "0 auto" }}>
@@ -89,6 +91,7 @@ export function SettingsView({
         onAddAccount={onAddAccount}
         onAuthorize={onAuthorize}
         onDeleteAccount={onDeleteAccount}
+        onBankProfilesChanged={onBankProfilesChanged}
       />
     </div>
   );

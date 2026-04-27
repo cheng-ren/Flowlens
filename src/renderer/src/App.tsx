@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { centerScreen, C } from "./styles";
 import { useCapture } from "./hooks/useCapture";
 import { Dialog, type DialogState } from "./components/Dialog";
-import { SideNav } from "./components/SideNav";
+import { SideNav, type BankProfileItem } from "./components/SideNav";
 import { SettingsModal } from "./components/settings/SettingsModal";
 import { DashboardHome, type PlatformView } from "./components/dashboard/DashboardHome";
 import { ShopOrdersView } from "./components/dashboard/ShopOrdersView";
@@ -10,32 +10,24 @@ import { AlipayBillsView } from "./components/dashboard/AlipayBillsView";
 import { WechatBillsView } from "./components/dashboard/WechatBillsView";
 import { BankTransactionsView } from "./components/dashboard/BankTransactionsView";
 import { FloatWebviewPanel } from "./components/webview/FloatWebviewPanel";
+import { AssetFlowView } from "./components/dashboard/AssetFlowView";
 
-export type ViewType = "home" | PlatformView;
+export type ViewType = "home" | PlatformView | string;
 
 // 即将上线的平台列表
-const SOON_VIEWS: ViewType[] = [
+const SOON_VIEWS: string[] = [
   "pdd", "sams", "other_shop",
   "unionpay",
-  "ccb", "abc", "icbc", "boc", "postal", "citic", "minsheng", "other_bank",
 ];
 
-const SOON_LABELS: Partial<Record<ViewType, string>> = {
+const SOON_LABELS: Record<string, string> = {
   pdd: "拼多多",
   sams: "山姆",
   other_shop: "其他电商",
   unionpay: "云闪付",
-  ccb: "建设银行",
-  abc: "农业银行",
-  icbc: "工商银行",
-  boc: "中国银行",
-  postal: "邮政储蓄",
-  citic: "中信银行",
-  minsheng: "民生银行",
-  other_bank: "其他银行",
 };
 
-function ComingSoonView({ view }: { view: ViewType }) {
+function ComingSoonView({ view }: { view: string }) {
   return (
     <div
       style={{
@@ -65,6 +57,7 @@ function App() {
   const [users, setUsers] = useState<any[]>([]);
   const [activeUser, setActiveUser] = useState<any>(null);
   const [accounts, setAccounts] = useState<any[]>([]);
+  const [bankProfiles, setBankProfiles] = useState<BankProfileItem[]>([]);
   const [view, setView] = useState<ViewType>("home");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [dialog, setDialog] = useState<DialogState | null>(null);
@@ -104,7 +97,16 @@ function App() {
     loadInitialData();
   }, []);
 
+  const loadBankProfiles = async () => {
+    try {
+      // @ts-ignore
+      const profiles = await window.api.bankGetProfiles();
+      setBankProfiles(profiles || []);
+    } catch (_) {}
+  };
+
   const loadInitialData = async () => {
+    loadBankProfiles();
     try {
       // @ts-ignore
       const fams = await window.api.getFamilies();
@@ -222,9 +224,14 @@ function App() {
     const acc = await window.api.createAccount({
       userId: activeUser.id,
       platform,
-      accountName: "待授权账号",
+      accountName: platform === "wechat" ? "微信支付" : platform === "alipay" ? "支付宝" : "待授权账号",
     });
     setAccounts((prev) => [acc, ...prev]);
+    // 微信和支付宝无需 cookie 授权，直接提示
+    if (platform === "wechat" || platform === "alipay") {
+      alert(`${platform === "wechat" ? "微信支付" : "支付宝"}账户已关联到【${activeUser.name}】，请在左侧导航进入对应页面导入账单文件。`);
+      return;
+    }
     handleAuthorize(acc);
   };
 
@@ -297,8 +304,8 @@ function App() {
     if (view === "home") {
       return <DashboardHome onSelectPlatform={(p) => setView(p)} />;
     }
-    if (SOON_VIEWS.includes(view)) {
-      return <ComingSoonView view={view} />;
+    if (SOON_VIEWS.includes(view as string)) {
+      return <ComingSoonView view={view as string} />;
     }
     if (view === "taobao") {
       return (
@@ -324,9 +331,27 @@ function App() {
         />
       );
     }
-    if (view === "alipay") return <AlipayBillsView />;
-    if (view === "wechat") return <WechatBillsView />;
-    if (view === "bank") return <BankTransactionsView />;
+    if (view === "alipay") return <AlipayBillsView users={users} activeUser={activeUser} />;
+    if (view === "wechat") return <WechatBillsView users={users} activeUser={activeUser} />;
+    if (view === "assetFlow") return <AssetFlowView />;
+
+    // 动态银行视图：view 格式为 "bank:{profileId}"
+    if (typeof view === "string" && view.startsWith("bank:")) {
+      const profileId = view.slice(5);
+      const profile = bankProfiles.find((p) => p.id === profileId);
+      if (profile) {
+        return (
+          <BankTransactionsView
+            key={profileId}
+            profileId={profileId}
+            profileName={profile.name}
+          />
+        );
+      }
+      // Profile 不存在（已删除等），跳转首页
+      return <DashboardHome onSelectPlatform={(p) => setView(p)} />;
+    }
+
     return null;
   };
 
@@ -347,7 +372,7 @@ function App() {
       }}
     >
       <style>{`
-        body { margin: 0; padding: 0; overflow: hidden; background: #0d1117; }
+        body { margin: 0; padding: 0; overflow: hidden; background: #0d1117; border-radius: inherit; }
         @keyframes fadeInScale {
           from { transform: scale(0.9); opacity: 0; }
           to   { transform: scale(1); opacity: 1; }
@@ -384,12 +409,14 @@ function App() {
         onAddAccount={handleAddAccount}
         onAuthorize={handleAuthorize}
         onDeleteAccount={handleDeleteAccount}
+        onBankProfilesChanged={loadBankProfiles}
       />
 
       {/* 左侧导航栏 */}
       <SideNav
         activeFamily={activeFamily}
         view={view}
+        bankProfiles={bankProfiles}
         onNavigate={setView}
         onOpenSettings={() => setSettingsOpen(true)}
       />
